@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Космопорт — планеты Солнечной системы</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #05060f;
+    --card: rgba(20, 26, 48, 0.65);
+    --border: rgba(120, 160, 255, 0.18);
+    --text: #e6ecff;
+    --muted: #8b95b8;
+    --accent: #5fa8ff;
+  }
+
+  body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: radial-gradient(circle at 20% 0%, #101a3a 0%, var(--bg) 55%);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  #stars {
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    display: block;
+  }
+
+  header {
+    text-align: center;
+    padding: 60px 20px 30px;
+  }
+
+  header h1 {
+    font-size: clamp(28px, 5vw, 46px);
+    letter-spacing: 2px;
+    background: linear-gradient(90deg, #7fc3ff, #c6a8ff, #7fc3ff);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    font-weight: 800;
+  }
+
+  header p {
+    color: var(--muted);
+    margin-top: 12px;
+    font-size: 15px;
+  }
+
+  main {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 0 20px 80px;
+  }
+
+  .controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+    justify-content: center;
+    margin-bottom: 28px;
+  }
+
+  #search {
+    flex: 1 1 240px;
+    max-width: 320px;
+    padding: 11px 16px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: rgba(15, 20, 40, 0.7);
+    color: var(--text);
+    font-size: 14px;
+    outline: none;
+    transition: border-color .25s, box-shadow .25s;
+  }
+
+  #search:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(95, 168, 255, 0.18);
+  }
+
+  .filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: center;
+  }
+
+  .filters button {
+    padding: 10px 16px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: rgba(15, 20, 40, 0.6);
+    color: var(--muted);
+    font-size: 13px;
+    cursor: pointer;
+    transition: all .25s;
+  }
+
+  .filters button:hover { color: var(--text); border-color: var(--accent); }
+
+  .filters button.active {
+    background: linear-gradient(135deg, #2f6dff, #7a4bff);
+    color: #fff;
+    border-color: transparent;
+    box-shadow: 0 6px 20px rgba(80, 110, 255, 0.35);
+  }
+
+  .count {
+    text-align: center;
+    color: var(--muted);
+    font-size: 13px;
+    margin-bottom: 22px;
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+    gap: 20px;
+  }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 22px 16px 20px;
+    text-align: center;
+    cursor: pointer;
+    backdrop-filter: blur(6px);
+    transition: transform .3s, border-color .3s, box-shadow .3s;
+    animation: fadeUp .4s ease both;
+  }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(12px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .card:hover {
+    transform: translateY(-6px);
+    border-color: var(--accent);
+    box-shadow: 0 14px 34px rgba(40, 90, 200, 0.35);
+  }
+
+  .planet-wrap {
+    position: relative;
+    height: 130px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 14px;
+  }
+
+  .planet {
+    width: 104px;
+    height: 104px;
+    border-radius: 50%;
+    position: relative;
+    z-index: 2;
+    box-shadow: inset -14px -14px 28px rgba(0,0,0,.6),
+                0 0 24px rgba(120, 170, 255, .22);
+    transition: transform .45s ease;
+  }
+
+  .card:hover .planet { transform: scale(1.1) rotate(-6deg); }
+
+  .ring {
+    position: absolute;
+    width: 168px;
+    height: 168px;
+    border-radius: 50%;
+    border: 5px solid rgba(225, 205, 160, 0.55);
+    transform: scaleY(0.26);
+    z-index: 1;
+    pointer-events: none;
+  }
+
+  .card h3 { font-size: 17px; margin-bottom: 4px; }
+
+  .card .type {
+    font-size: 12px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  .modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(2, 4, 12, 0.75);
+    backdrop-filter: blur(6px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    z-index: 50;
+    opacity: 1;
+    transition: opacity .25s;
+  }
+
+  .modal.hidden { opacity: 0; pointer-events: none; }
+
+  .modal-card {
+    background: linear-gradient(160deg, #151d38, #0c1122);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 32px 28px;
+    max-width: 480px;
+    width: 100%;
+    max-height: 88vh;
+    overflow-y: auto;
+    position: relative;
+    text-align: center;
+    box-shadow: 0 30px 70px rgba(0,0,0,.6);
+    transform: translateY(0);
+    transition: transform .3s;
+  }
+
+  .modal.hidden .modal-card { transform: translateY(20px); }
+
+  .modal-card .close {
+    position: absolute;
+    top: 14px;
+    right: 16px;
+    background: transparent;
+    border: none;
+    color: var(--muted);
+    font-size: 26px;
+    cursor: pointer;
+    line-height: 1;
+    transition: color .2s;
+  }
+
+  .modal-card .close:hover { color: #fff; }
+
+  .modal-planet {
+    width: 130px;
+    height: 130px;
+    border-radius: 50%;
+    margin: 0 auto 20px;
+    box-shadow: inset -18px -18px 32px rgba(0,0,0,.6),
+                0 0 40px rgba(120, 170, 255, .3);
+  }
+
+  .modal-card h2 { font-size: 24px; margin-bottom: 6px; }
+
+  .modal-card .type {
+    color: var(--muted);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    margin-bottom: 18px;
+  }
+
+  .modal-card .desc {
+    font-size: 14px;
+    line-height: 1.6;
+    color: #c6cfe8;
+    margin-bottom: 22px;
+  }
+
+  .stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    text-align: left;
+  }
+
+  .stats > div {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 12px;
+  }
+
+  .stats dt {
+    font-size: 11px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: .8px;
+    margin-bottom: 4px;
+  }
+
+  .stats dd { font-size: 14px; font-weight: 600; }
+
+  .empty {
+    text-align: center;
+    color: var(--muted);
+    padding: 60px 0;
+    font-size: 15px;
+    grid-column: 1 / -1;
+  }
+
+  @media (max-width: 520px) {
+    header { padding-top: 40px; }
+    .stats { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<canvas id="stars"></canvas>
+
+<header>
+  <h1>КОСМОПОРТ</h1>
+  <p>Интерактивный атлас планет Солнечной системы</p>
+</header>
+
+<main>
+  <div class="controls">
+    <input id="search" type="text" placeholder="Поиск планеты...">
+    <div class="filters" id="filters">
+      <button class="active" data-filter="all">Все</button>
+      <button data-filter="earth">Земная группа</button>
+      <button data-filter="gas">Газовые гиганты</button>
+      <button data-filter="ice">Ледяные гиганты</button>
+    </div>
+  </div>
+
+  <div class="count" id="count"></div>
+  <section class="grid" id="grid"></section>
+</main>
+
+<div class="modal hidden" id="modal">
+  <div class="modal-card">
+    <button class="close" id="closeModal" aria-label="Закрыть">×</button>
+    <div id="modalBody"></div>
+  </div>
+</div>
+
+<script>
+/* ================= ДАННЫЕ ================= */
+const planets = [
+  {
+    name: 'Меркурий', type: 'earth', typeLabel: 'Земная группа',
+    color: ['#cfc7bf', '#7a716a', '#332e2b'],
+    diameter: '4 879 км', distance: '0,39 а.е.',
+    day: '58,6 сут', year: '88 сут', temp: '−173…+427 °C', moons: 0,
+    desc: 'Самая маленькая и самая близкая к Солнцу планета. Практически лишена атмосферы, поверхность усеяна кратерами, а перепады температуры — крупнейшие в Солнечной системе.'
+  },
+  {
+    name: 'Венера', type: 'earth', typeLabel: 'Земная группа',
+    color: ['#ffe9b0', '#e0a95c', '#7d5325'],
+    diameter: '12 104 км', distance: '0,72 а.е.',
+    day: '243 сут', year: '225 сут', temp: '+464 °C', moons: 0,
+    desc: 'Самая горячая планета Солнечной системы. Плотная углекислотная атмосфера создаёт парниковый эффект, а давление у поверхности в 92 раза выше земного.'
+  },
+  {
+    name: 'Земля', type: 'earth', typeLabel: 'Земная группа',
+    color: ['#8fd0ff', '#2a6fdb', '#0a2a5a'],
+    diameter: '12 742 км', distance: '1,00 а.е.',
+    day: '23,9 ч', year: '365,25 сут', temp: '−89…+58 °C', moons: 1,
+    desc: 'Единственная известная планета с жизнью. Около 71% поверхности покрыто водой, а магнитное поле и атмосфера защищают биосферу от космической радиации.'
+  },
+  {
+    name: 'Марс', type: 'earth', typeLabel: 'Земная группа',
+    color: ['#ffb08a', '#c1471f', '#571d0b'],
+    diameter: '6 779 км', distance: '1,52 а.е.',
+    day: '24,6 ч', year: '687 сут', temp: '−143…+35 °C', moons: 2,
+    desc: 'Красная планета получила цвет благодаря оксиду железа в грунте. Здесь находятся крупнейший вулкан Солнечной системы (Олимп) и гигантский каньон — долины Маринер.'
+  },
+  {
+    name: 'Юпитер', type: 'gas', typeLabel: 'Газовый гигант',
+    color: ['#ffe3c2', '#d9a066', '#7d5227'],
+    diameter: '139 820 км', distance: '5,20 а.е.',
+    day: '9,9 ч', year: '11,9 лет', temp: '−145 °C', moons: 95,
+    desc: 'Крупнейшая планета Солнечной системы. Большое Красное Пятно — гигантский шторм, бушующий уже более 350 лет. У Юпитера сильнейшее магнитное поле среди планет.'
+  },
+  {
+    name: 'Сатурн', type: 'gas', typeLabel: 'Газовый гигант',
+    color: ['#ffeec2', '#d6b26a', '#6e5729'],
+    rings: true,
+    diameter: '116 460 км', distance: '9,58 а.е.',
+    day: '10,7 ч', year: '29,5 лет', temp: '−178 °C', moons: 146,
+    desc: 'Знаменит системой колец из льда и пыли толщиной всего в десятки метров. Средняя плотность планеты меньше плотности воды — Сатурн мог бы «плавать».'
+  },
+  {
+    name: 'Уран', type: 'ice', typeLabel: 'Ледяной гигант',
+    color: ['#d6fbff', '#6fd6e0', '#2a6f7a'],
+    diameter: '50 724 км', distance: '19,2 а.е.',
+    day: '17,2 ч', year: '84 года', temp: '−224 °C', moons: 28,
+    desc: 'Вращается «лёжа на боку» — наклон оси около 98°. Метан в атмосфере придаёт планете характерный бирюзовый оттенок, а температура здесь самая низкая в системе.'
+  },
+  {
+    name: 'Нептун', type: 'ice', typeLabel: 'Ледяной гигант',
+    color: ['#bcd9ff', '#3a63d6', '#101d52'],
+    diameter: '49 244 км', distance: '30,05 а.е.',
+    day: '16,1 ч', year: '165 лет', temp: '−214 °C', moons: 16,
+    desc: 'Самая удалённая планета Солнечной системы, открытая расчётами, а не наблюдениями. Здесь дуют сильнейшие ветры — до 2 100 км/ч.'
+  }
+];
+
+/* ================= СЕТКА ================= */
+const grid = document.getElementById('grid');
+const countEl = document.getElementById('count');
+const searchEl = document.getElementById('search');
+const filtersEl = document.getElementById('filters');
+const modal = document.getElementById('modal');
+const modalBody = document.getElementById('modalBody');
+const closeModal = document.getElementById('closeModal');
+
+let activeFilter = 'all';
+
+function renderCard(p) {
+  const card = document.createElement('article');
+  card.className = 'card';
+  card.innerHTML = `
+    <div class="planet-wrap">
+      <div class="planet" style="background: radial-gradient(circle at 30% 30%, ${p.color[0]}, ${p.color[1]} 55%, ${p.color[2]} 100%);"></div>
+      ${p.rings ? '<div class="ring"></div>' : ''}
+    </div>
+    <h3>${p.name}</h3>
+    <p class="type">${p.typeLabel}</p>
+  `;
+  card.addEventListener('click', () => openModal(p));
+  return card;
+}
+
+function applyFilters() {
+  const query = searchEl.value.trim().toLowerCase();
+  const visible = planets.filter(p => {
+    const matchFilter = activeFilter === 'all' || p.type === activeFilter;
+    const matchQuery = p.name.toLowerCase().includes(query);
+    return matchFilter && matchQuery;
+  });
+
+  grid.innerHTML = '';
+  if (visible.length === 0) {
+    grid.innerHTML = '<p class="empty">Планет не найдено 🌌</p>';
+  } else {
+    visible.forEach((p, i) => {
+      const card = renderCard(p);
+      card.style.animationDelay = `${i * 40}ms`;
+      grid.appendChild(card);
+    });
+  }
+
+  countEl.textContent = `Показано ${visible.length} из ${planets.length}`;
+}
+
+/* ================= МОДАЛКА ================= */
+function openModal(p) {
+  modalBody.innerHTML = `
+    <div class="modal-planet" style="background: radial-gradient(circle at 30% 30%, ${p.color[0]}, ${p.color[1]} 55%, ${p.color[2]} 100%);"></div>
+    <h2>${p.name}</h2>
+    <p class="type">${p.typeLabel}</p>
+    <p class="desc">${p.desc}</p>
+    <dl class="stats">
+      <div><dt>Диаметр</dt><dd>${p.diameter}</dd></div>
+      <div><dt>Расстояние от Солнца</dt><dd>${p.distance}</dd></div>
+      <div><dt>Сутки</dt><dd>${p.day}</dd></div>
+      <div><dt>Год</dt><dd>${p.year}</dd></div>
+      <div><dt>Температура</dt><dd>${p.temp}</dd></div>
+      <div><dt>Спутники</dt><dd>${p.moons}</dd></div>
+    </dl>
+  `;
+  modal.classList.remove('hidden');
+}
+
+function hideModal() {
+  modal.classList.add('hidden');
+}
+
+closeModal.addEventListener('click', hideModal);
+modal.addEventListener('click', e => { if (e.target === modal) hideModal(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') hideModal(); });
+
+/* ================= ФИЛЬТРЫ И ПОИСК ================= */
+filtersEl.addEventListener('click', e => {
+  const btn = e.target.closest('button');
+  if (!btn) return;
+  filtersEl.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  activeFilter = btn.dataset.filter;
+  applyFilters();
+});
+
+searchEl.addEventListener('input', applyFilters);
+
+/* ================= ЗВЁЗДНЫЙ ФОН ================= */
+const canvas = document.getElementById('stars');
+const ctx = canvas.getContext('2d');
+let stars = [];
+
+function buildStars() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+  const count = Math.floor((canvas.width * canvas.height) / 5500);
+  stars = Array.from({ length: count }, () => ({
+    x: Math.random() * canvas.width,
+    y: Math.random() * canvas.height,
+    r: Math.random() * 1.4 + 0.3,
+    alpha: Math.random(),
+    speed: Math.random() * 0.012 + 0.003
+  }));
+}
+
+function drawStars() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  for (const s of stars) {
+    s.alpha += (Math.random() - 0.5) * s.speed * 2;
+    s.alpha = Math.max(0.08, Math.min(1, s.alpha));
+    ctx.beginPath();
+    ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(255,255,255,${s.alpha})`;
+    ctx.fill();
+  }
+  requestAnimationFrame(drawStars);
+}
+
+window.addEventListener('resize', buildStars);
+buildStars();
+drawStars();
+
+/* ================= СТАРТ ================= */
+applyFilters();
+</script>
+</body>
+</html>
